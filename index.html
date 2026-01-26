@@ -158,6 +158,7 @@
             const [lang, setLang] = useState('en');
             const [records, setRecords] = useState([]);
             const [searchQuery, setSearchQuery] = useState('');
+            const [selectedLineFilter, setSelectedLineFilter] = useState(null);
             const [withdrawSearch, setWithdrawSearch] = useState('');
             const [showContact, setShowContact] = useState(false);
             const [editingId, setEditingId] = useState(null);
@@ -259,13 +260,21 @@
 
             const filteredInventory = useMemo(() => {
                 const q = searchQuery.toLowerCase();
-                return inventory.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q)));
-            }, [inventory, searchQuery]);
+                let filtered = inventory;
+                if (selectedLineFilter) {
+                    filtered = filtered.filter(r => r.line.trim() === selectedLineFilter);
+                }
+                return filtered.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q)));
+            }, [inventory, searchQuery, selectedLineFilter]);
 
             const filteredHistory = useMemo(() => {
                 const q = searchQuery.toLowerCase();
-                return history.filter(r => r.line.toLowerCase().includes(q) || (r.withdrawnBy && r.withdrawnBy.toLowerCase().includes(q)));
-            }, [history, searchQuery]);
+                let filtered = history;
+                if (selectedLineFilter) {
+                    filtered = filtered.filter(r => r.line.trim() === selectedLineFilter);
+                }
+                return filtered.filter(r => r.line.toLowerCase().includes(q) || (r.withdrawnBy && r.withdrawnBy.toLowerCase().includes(q)));
+            }, [history, searchQuery, selectedLineFilter]);
 
             const withdrawSearchResults = useMemo(() => {
                 if (withdrawSearch.length < 2) return [];
@@ -352,6 +361,15 @@
                 link.click();
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
+            };
+
+            const handleToggleFilter = (line) => {
+                if (selectedLineFilter === line) {
+                    setSelectedLineFilter(null);
+                } else {
+                    setSelectedLineFilter(line);
+                    setViewTab('inventory'); // Ensure we are on inventory to see results
+                }
             };
 
             // Common input style classes - Adjusted to match the requested tab container style
@@ -443,13 +461,24 @@
 
                                 {stockByLine.length > 0 && (
                                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                                        <h3 className="text-xs font-bold text-slate-400 uppercase mb-4 flex gap-2"><i className="fa-solid fa-chart-pie text-indigo-500"></i> {t.stockOverview}</h3>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="text-xs font-bold text-slate-400 uppercase flex gap-2"><i className="fa-solid fa-chart-pie text-indigo-500"></i> {t.stockOverview}</h3>
+                                            {selectedLineFilter && (
+                                                <button onClick={() => setSelectedLineFilter(null)} className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 uppercase flex items-center gap-1">
+                                                    <i className="fa-solid fa-xmark"></i> {lang === 'es' ? 'Limpiar Filtro' : 'Clear Filter'}
+                                                </button>
+                                            )}
+                                        </div>
                                         <div className="flex flex-wrap gap-3">
                                             {stockByLine.map(([line, count]) => (
-                                                <div key={line} className="px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center gap-3 hover:scale-105 transition-transform">
-                                                    <span className="text-sm font-black text-indigo-900">{line}</span>
-                                                    <span className="w-7 h-7 flex items-center justify-center bg-indigo-600 text-white text-[10px] font-black rounded-full">{count}</span>
-                                                </div>
+                                                <button 
+                                                    key={line} 
+                                                    onClick={() => handleToggleFilter(line)}
+                                                    className={`px-4 py-2 rounded-xl flex items-center gap-3 transition-all border ${selectedLineFilter === line ? 'bg-indigo-600 border-indigo-700 scale-105 shadow-md shadow-indigo-100' : 'bg-indigo-50 border-indigo-100 hover:bg-indigo-100'}`}
+                                                >
+                                                    <span className={`text-sm font-black transition-colors ${selectedLineFilter === line ? 'text-white' : 'text-indigo-900'}`}>{line}</span>
+                                                    <span className={`w-7 h-7 flex items-center justify-center text-[10px] font-black rounded-full transition-colors ${selectedLineFilter === line ? 'bg-white text-indigo-600' : 'bg-indigo-600 text-white'}`}>{count}</span>
+                                                </button>
                                             ))}
                                         </div>
                                     </div>
@@ -466,6 +495,14 @@
                                             <input type="text" placeholder={t.search} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className={searchInputStyles} />
                                         </div>
                                     </div>
+                                    {selectedLineFilter && (
+                                        <div className="px-6 py-2 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
+                                            <span className="text-xs font-bold text-indigo-700">
+                                                {lang === 'es' ? 'Filtrando por línea:' : 'Filtering by line:'} <span className="font-black underline">{selectedLineFilter}</span>
+                                            </span>
+                                            <button onClick={() => setSelectedLineFilter(null)} className="text-indigo-400 hover:text-indigo-600 transition-colors"><i className="fa-solid fa-circle-xmark"></i></button>
+                                        </div>
+                                    )}
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left">
                                             <thead className="bg-slate-50/50">
